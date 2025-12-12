@@ -1,0 +1,15 @@
+# secrets
+.env
+
+
+# python-related
+venv
+*/venv
+
+__pycache__
+*/__pycache__
+
+
+# node-related
+node_modules
+*/node_modules
