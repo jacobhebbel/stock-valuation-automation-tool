@@ -1,12 +1,12 @@
-const {
+import {
     FactsetService,
     EdgarService
-} = require('classes');
+} from './services';
 
-const {
+import {
     InvalidServiceStringError,
     InvalidTickerStringError
-} = require('errors.js');
+} from './errors'
 
 
 /*
@@ -32,4 +32,4 @@ function stringToService(string) {
     }
 }
 
-module.exports = stringToService;
+module.exports = { stringToService };

@@ -1,8 +1,14 @@
 // imports
-const express = require('express');
-const path = require('path');
+import express from 'express';
+import path from 'path';
+
+import { stringToService } from './utils';
+import { 
+    InvalidServiceStringError, 
+    InvalidTickerStringError,
+    FieldNotFoundError
+} from './errors';
 const app = express();
-const { stringToService } = require('utils');
 
 // middlewares
 app.use(express.json()); 
@@ -34,8 +40,10 @@ app.get('/data/:stockTicker/:service', async (req, res) => {
         if (!req.params.service || !req.params.stockTicker)
             return res.status(400).json({ 'error': '1 or more path parameters missing' });
 
+        // initialize vars
         Service = stringToService(req.params.service);
         ticker = req.params.stockTicker;
+
     } catch (error) {
 
         // The provided string didnt match one of the supported datasets
@@ -54,12 +62,15 @@ app.get('/data/:stockTicker/:service', async (req, res) => {
     } catch (error) {
 
         // log the error 
-        console.log('ERROR ENCOUNTERED\n\n%O\n\n\n', error);
+        console.log('ERROR ENCOUNTERED:\n\n%O\n\n\n', error);
         
         // stock ticker wasn't found in the service
         if (error instanceof InvalidTickerStringError)
             return res.status(404).json({ 'error': 'the provided ticker string wasn\'t found in the dataset' });
         
+        if (error instanceof FieldNotFoundError)
+            return res.status(500).json({ 'error': 'The dataset couldn\t collect one or more fields' });
+
         // if we can't account for the error, then serve a general 500  
         return res.status(500).json({ 'error': 'Internal Server Error '});
     }

@@ -1,0 +1,25 @@
+{
+    "DCF": {
+        "Tax Provision": ["IncomeTaxExpenseBenefit", "CurrentIncomeTaxExpenseBenefit"],
+        "Interest/Income": ["InvestmentIncomeInterest", "InterestIncomeOperating", "InterestAndDividendIncomeOperating"],
+        "Stock-based Compensation": ["AllocatedShareBasedCompensationExpense", "ShareBasedCompensation"],
+        "D&A / Impairment": ["DepreciationDepletionAndAmortization", "DepreciationAndAmortization", "AssetImpairmentCharges"],
+        "Operating Cash Flow": ["NetCashProvidedByUsedInOperatingActivities"]
+    },
+
+    "WACC": {
+        "Cost of Debt": {
+            "operation": ["InterestExpense", "TotalDebt", "/"]
+        },
+        "Tax Rate": {
+            "operation": ["IncomeTaxExpenseBenefit", "IncomeLossFromContinuingOperationsBeforeIncomeTaxes", "/"]
+        },
+        "Total Debt": {
+            "operation": ["ShortTermBorrowings", "LongTermDebtNoncurrent", "+"]
+        },
+        "Minority Interest": {
+            "static": ["Minority Interest"],
+            "operation": ["StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", "StockholdersEquity", "-"]
+        }
+    }
+}
