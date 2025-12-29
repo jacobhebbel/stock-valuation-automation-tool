@@ -1,0 +1,25 @@
+{
+  "name": "stock-valuation-automation-tool",
+  "version": "1.0.0",
+  "description": "Given a ticker, this project gives several representations of the data across different datasets. It highlights inaccuracies beyond a particular tolerance, and can export the data into an excel spreadsheet.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacobhebbel/stock-valuation-automation-tool.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jacobhebbel/stock-valuation-automation-tool/issues"
+  },
+  "homepage": "https://github.com/jacobhebbel/stock-valuation-automation-tool#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
