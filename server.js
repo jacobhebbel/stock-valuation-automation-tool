@@ -2,12 +2,13 @@
 import express from 'express';
 import path from 'path';
 
-import { stringToService } from './utils';
+import { stringToService } from './utils.js';
 import { 
     InvalidServiceStringError, 
     InvalidTickerStringError,
     FieldNotFoundError
-} from './errors';
+} from './errors.js';
+
 const app = express();
 
 // middlewares
@@ -24,7 +25,7 @@ app.get('/health', async (req, res) => {
     const factsetHealth = false; 
     const edgarHealth = false;
 
-    // send a resposne indicating which services are on
+    // send a response indicating which services are on
     return res.json({
         serverHealth: true,
         factsetHealth,

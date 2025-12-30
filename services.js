@@ -1,7 +1,11 @@
 import { 
     InvalidTickerStringError,
     FieldNotFoundError
-} from './errors';
+} from './errors.js';
+import {
+    executeOperation,
+    tickerToCik
+} from './utils.js'
 import { mapping } from './edgarMapping.json';
 
 class TemplateService {
@@ -20,33 +24,7 @@ class TemplateService {
     async formatData(data) {}
 }
 
-
-async function tickerToCik() {
-    const data = await fetch('https://www.sec.gov/files/company_tickers.json');
-    
-    const mapping = {}; 
-    Object.values(data).forEach(item => {
-        const paddedCik = item.cik_str.toString().padStart(10, '0');
-        mapping[item.ticker] = paddedCik;
-    });
-
-    return mapping;
-}
-
-function executeOperation(op1, op2, operator) {
-    switch (operator) {
-        case '+':
-            return op1 + op2;
-        case '-':
-            return op1 - op2;
-        case '*':
-            return op1 * op2;
-        case '/':
-            return op1 / op2;
-    }
-}
-
-class EdgarService extends TemplateService {
+export class EdgarService extends TemplateService {
 
     // call super constructor
     constructor(args) { 
@@ -78,7 +56,7 @@ class EdgarService extends TemplateService {
         let dcfResults = {};
 
         // go through each field: alias combo for dcf
-        Object.entries(dcfMapping).forEach((field, aliasList) => {
+        Object.entries(dcfMapping).forEach(([field, aliasList]) => {
             
             // assigns the field the first found alias value
             dcfResults[field] = Object.values(aliasList).forEach(alias => {
@@ -94,7 +72,7 @@ class EdgarService extends TemplateService {
         // now time to fetch info for WACC
         const waccMapping = mapping['wacc'];
         let waccResults = {};
-        Object.entries(waccMapping).forEach((field, instructor) => {
+        Object.entries(waccMapping).forEach(([field, instructor]) => {
 
             // try using the static fields for building
             if (instructor.static) {
@@ -128,7 +106,7 @@ class EdgarService extends TemplateService {
 }
 
 
-class FactsetService extends TemplateService {
+export class FactsetService extends TemplateService {
 
     constructor(args) { super(args); }
 
@@ -139,9 +117,4 @@ class FactsetService extends TemplateService {
     async formatData(data) {
         
     }
-}
-
-module.exports = {
-    FactsetService, 
-    EdgarService
 };
