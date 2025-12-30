@@ -6,7 +6,8 @@ import {
     executeOperation,
     tickerToCik
 } from './utils.js'
-import { mapping } from './edgarMapping.json';
+
+import mapping from './edgarMapping.json' with { type: 'json' };
 
 class TemplateService {
 

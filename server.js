@@ -1,6 +1,5 @@
 // imports
 import express from 'express';
-import path from 'path';
 
 import { stringToService } from './utils.js';
 import { 
@@ -16,7 +15,7 @@ app.use(express.json());
 
 
 // serve frontend
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
 // endpoints
 app.get('/health', async (req, res) => {
@@ -75,4 +74,8 @@ app.get('/data/:stockTicker/:service', async (req, res) => {
         // if we can't account for the error, then serve a general 500  
         return res.status(500).json({ 'error': 'Internal Server Error '});
     }
+});
+
+app.listen(3000, () => {
+    console.log('live on port 3000');
 });
