@@ -2,12 +2,15 @@ import {
     InvalidTickerStringError,
     FieldNotFoundError
 } from './errors.js';
+
 import {
     executeOperation,
     tickerToCik
 } from './utils.js'
 
 import mapping from './edgarMapping.json' with { type: 'json' };
+import axios from 'axios';
+
 
 class TemplateService {
 
@@ -15,8 +18,8 @@ class TemplateService {
 
     // common access function
     async getTickerInfo(query) {
-        const data = await fetchData(query);
-        const result = await formatData(data);
+        const data = await this.fetchData(query);
+        const result = await this.formatData(data);
         return result;
     }
 
@@ -27,46 +30,61 @@ class TemplateService {
 
 export class EdgarService extends TemplateService {
 
+    static tickerToCik = null;
     // call super constructor
-    constructor(args) { 
-        super(args);
+    constructor() { 
+        super();
         this.authHeader = { 'User-Agent': 'stockTool jacob.hebbel@gmail.com' };
-        
-        tickerToCik().then(mapping => {
-            this.tickerToCik = mapping
-        }).catch(error => {
-            throw new Error(error.message);
-        }); 
     }
 
     // call for getting data
     async fetchData(ticker) {
-        const cik = this.tickerToCik[ticker] || null;
-        if (!cik) throw new InvalidTickerStringError();
 
-        const url = 'data.sec.gov/api/xbrl/companyfacts/CIK' + cik + '.json';
-        const data = await fetch(url);
+        console.log('calling fetch data on edgar service');
 
-        return data;
+        if (!EdgarService.tickerToCik)
+            EdgarService.tickerToCik = await tickerToCik();
+
+        const cik = EdgarService.tickerToCik[ticker] || null;
+        if (!cik) throw new InvalidTickerStringError('ticker had no correlating cik');
+
+        console.log('fetching facts for ' + ticker + ' with cik ' + cik);
+        const url = 'https://data.sec.gov/api/xbrl/companyfacts/CIK' + cik + '.json';
+        const authHeader = { 'User-Agent': 'FinanceClubResearch jacob.hebbel@gmail.com' };
+        const response = await axios.get(url, {
+            headers: {
+                ...authHeader,
+                'Accept-Encoding': 'gzip, deflate, br'
+            }
+        });
+        
+        // check the response is ok
+        if (response.status != 200) throw new Error(`Could not connect to SEC api`);        
+        console.log(response.data);
+        return response.data;
     }
 
     async formatData(data) {
         
         // extracting info for dcf
         const dcfMapping = mapping['dcf'];
+        
         let dcfResults = {};
 
         // go through each field: alias combo for dcf
         Object.entries(dcfMapping).forEach(([field, aliasList]) => {
             
-            // assigns the field the first found alias value
-            dcfResults[field] = Object.values(aliasList).forEach(alias => {
-                if (data[alias]) return data[value];
-            });
+            console.log(`looking for field ${field} using alias list ${aliasList}`);
 
+            // find the first alias that's in the edgar response object
+            const matchingAlias = aliasList.find(alias => alias in data.facts['us-gaap']);
+            dcfResults[field] = data.facts['us-gaap'][matchingAlias];
+            
             // ensure the field is populated. if not, throw an error
             if (!dcfResults[field])
-                throw new FieldNotFoundError('Could not find a filing label suitable for this field');
+                throw new FieldNotFoundError('Could not find a filing label suitable for field ' + field);
+            else
+                console.log(`made entry ${field} : ${dcfResults[field]}`);
         });
 
         
@@ -75,13 +93,11 @@ export class EdgarService extends TemplateService {
         let waccResults = {};
         Object.entries(waccMapping).forEach(([field, instructor]) => {
 
-            // try using the static fields for building
-            if (instructor.static) {
-                waccResults[field] = Object.values(instructor.static).forEach(value => {
-                    if (data[value])
-                        return data[value];
-                });
-            }
+            console.log(`looking for field ${field} using instructor ${instructor}`);
+
+            // first see if any static fields are in the response object
+            if (instructor.static) 
+                waccResults[field] = instructor.static.find(alias => alias in data.facts['us-gaap']); 
 
             // if no static or no static field worked, try calculating it
             if (!waccResults[field]) {

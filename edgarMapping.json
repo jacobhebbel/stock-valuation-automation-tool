@@ -1,5 +1,5 @@
 {
-    "DCF": {
+    "dcf": {
         "Tax Provision": ["IncomeTaxExpenseBenefit", "CurrentIncomeTaxExpenseBenefit"],
         "Interest/Income": ["InvestmentIncomeInterest", "InterestIncomeOperating", "InterestAndDividendIncomeOperating"],
         "Stock-based Compensation": ["AllocatedShareBasedCompensationExpense", "ShareBasedCompensation"],
@@ -7,7 +7,7 @@
         "Operating Cash Flow": ["NetCashProvidedByUsedInOperatingActivities"]
     },
 
-    "WACC": {
+    "wacc": {
         "Cost of Debt": {
             "operation": ["InterestExpense", "TotalDebt", "/"]
         },

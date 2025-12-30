@@ -41,14 +41,20 @@ app.get('/data/:stockTicker/:service', async (req, res) => {
             return res.status(400).json({ 'error': '1 or more path parameters missing' });
 
         // initialize vars
-        Service = stringToService(req.params.service);
-        ticker = req.params.stockTicker;
+        Service = stringToService(req.params.service.trim().toLowerCase());
+        ticker = req.params.stockTicker.toUpperCase();
 
     } catch (error) {
+
+        // log the error 
+        console.log('\n\n\nERROR ENCOUNTERED:\n\n%O\n\n\n', error);
 
         // The provided string didnt match one of the supported datasets
         if (error instanceof InvalidServiceStringError)
             return res.status(404).json({ 'error': 'the specified service does not match a supported service' });
+        
+        // if we can't account for the error, then serve a general 500  
+        return res.status(500).json({ 'error': 'Internal Server Error '});
     }
 
     // now we have the service, its time to query our dataset for the ticker 
@@ -62,7 +68,7 @@ app.get('/data/:stockTicker/:service', async (req, res) => {
     } catch (error) {
 
         // log the error 
-        console.log('ERROR ENCOUNTERED:\n\n%O\n\n\n', error);
+        console.log('\n\n\nERROR ENCOUNTERED:\n\n%O\n\n\n', error);
         
         // stock ticker wasn't found in the service
         if (error instanceof InvalidTickerStringError)
