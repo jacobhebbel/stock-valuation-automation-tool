@@ -14,12 +14,13 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/jacobhebbel/stock-valuation-automation-tool/issues"
   },
   "homepage": "https://github.com/jacobhebbel/stock-valuation-automation-tool#readme",
   "dependencies": {
+    "axios": "^1.13.2",
     "express": "^5.2.1"
   }
 }
