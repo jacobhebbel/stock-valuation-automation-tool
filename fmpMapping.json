@@ -1,0 +1,16 @@
+{
+    "Tax Provision / Tax Expense": ["incomeTaxExpense"],
+    "Interest Income": ["interestIncome"],
+    "Stock-based Compensation": ["stockBasedCompensation"],
+    "Deorecation / Amortization / Impairment": ["depreciationAndAmortization"],
+    "Increase in Net Working Capital": ["changeInWorkingCapital"],
+    "Risk-free rate": [],
+    "Market Return": ["marketReturn"],
+    "Beta": ["beta"],
+    "Cost of Debt": [],
+    "Tax Rate": ["effectiveTaxRate"],
+    "Debt / Equity Ratio": ["debtToEquity"],
+    "Cash Enterprise Value": ["enterpriseValue"],
+    "Debt": ["totalDebt"],
+    "Minority or Non-controlling Interest": ["minorityInterest"]
+}
