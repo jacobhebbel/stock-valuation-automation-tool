@@ -1,5 +1,9 @@
 import { FieldNotFoundError } from './errors.js';
 import mapping from './fmpMapping.json' with { type: 'json' };
+import {
+    calculateMarketReturn,
+    calculateCostOfDebt,
+} from './utils.js';
 import axios from 'axios';
 
 
@@ -33,14 +37,19 @@ export class EdgarService extends TemplateService {
         console.log('calling fetch data on edgar service');
 
         const url = 'https://financialmodelingprep.com/stable/';
-        const endpoints = ['income-statement', 'balance-sheet-statement', 'cash-flow-statement', 'key-metrics'];
+        
+        // endpoints to hit for all the data
+        const stockEndpoints = ['income-statement', 'balance-sheet-statement', 
+            'cash-flow-statement', 'key-metrics', 'ratios'];
+        const rateEndpoints = ['market-risk-premium', 'treasury-rates', 'profile'];
+        
         const params = {
             'symbol': ticker,
             'apikey': process.env.FMP_KEY
         };
 
         var allData = {};
-        for (const endpoint of endpoints) {
+        for (const endpoint of [...stockEndpoints, ...rateEndpoints]) {
             
             // build the url
             const searchParams = new URLSearchParams(params).toString();
@@ -52,18 +61,50 @@ export class EdgarService extends TemplateService {
             // check the response is ok
             if (response.status != 200) throw new Error(`Could not connect to SEC api`);
             
+            const data = response.data;
+
+            // logic specific to rate endpoints
+            if (rateEndpoints.includes(endpoint)) {
+                switch (endpoint) {
+                    case 'market-risk-premium':
+                        allData[endpoint] = [{
+                            value: data.find(premium => premium.country == "United States").totalEquityRiskPremium
+                        }];
+                        continue;
+
+                    case 'treasury-rates':
+                        allData[endpoint] = [{
+                            value: data[0].year10,
+                            date: data[0].date
+                        }];
+                        continue;
+
+                    case 'profile':
+                        allData[endpoint] = [{
+                            value: data[0].beta
+                        }];
+                        continue;
+
+                    default:
+                        throw Error('unexpected behavior');
+                }
+            }
+
             // loops over all fields
             const skipValues = ["symbol", "date", "fiscalYear", "period", "reportedCurrency"];
-            response.data.forEach(json => {
+            data.forEach(json => {
                 
                 // adds all entries of the json to allData, where each field has its metadata attached
                 for (const [key, value] of Object.entries(json)) {
+
+                    // skips metadata fields
                     if (skipValues.includes(value))
                         continue;
-
+                    
+                    // ensures key points to an array
                     if (!allData[key])
                         allData[key] = [];
-
+                    
                     // attaches metadata to each individual filing
                     allData[key].push({
                         "value": value,
@@ -71,7 +112,7 @@ export class EdgarService extends TemplateService {
                         "fiscalYear": json.fiscalYear,
                         "period": json.period,
                         "currency": json.reportedCurrency
-                    });
+                    });                        
                 }
             });
         }
@@ -85,13 +126,8 @@ export class EdgarService extends TemplateService {
         let results = {};
         Object.entries(mapping).forEach(([field, aliasList]) => {
 
-            console.log(`looking for field ${field} using alias list ${aliasList}`);
-
             // find the first alias that's in the edgar response object
             const matchingAlias = aliasList.find(alias => alias in data);
-            
-            console.log(matchingAlias);
-            console.log(data[matchingAlias]);
             
             if (matchingAlias)
                 results[field] = {
@@ -106,9 +142,22 @@ export class EdgarService extends TemplateService {
                 // throw new FieldNotFoundError('Could not find a filing label suitable for field ' + field);
                 results[field] = null;
             else
-                console.log(`made entry ${field} : ${results[field]}`);
+                console.log('made entry %o : %o', field, results[field]);
         });
 
+
+        // some fields need to be calculated
+        const calculatedFields = {
+            'Cost of Debt': calculateCostOfDebt,
+            'Market Return': calculateMarketReturn
+        };
+        
+        // calculate each field
+        Object.entries(calculatedFields).forEach(([field, func]) => results[field] = func(results));
+        
+        // logging the output
+        console.log('Sending response object %o', results);
+        
         // return a json
         return results;
     }
