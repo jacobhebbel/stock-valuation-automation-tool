@@ -1,14 +1,9 @@
-import { 
-    InvalidTickerStringError,
-    FieldNotFoundError
-} from './errors.js';
-
+import { FieldNotFoundError } from './errors.js';
+import mapping from './fmpMapping.json' with { type: 'json' };
 import {
-    executeOperation,
-    tickerToCik
-} from './utils.js'
-
-import mapping from './edgarMapping.json' with { type: 'json' };
+    calculateMarketReturn,
+    calculateCostOfDebt,
+} from './utils.js';
 import axios from 'axios';
 
 
@@ -30,95 +25,141 @@ class TemplateService {
 
 export class EdgarService extends TemplateService {
 
-    static tickerToCik = null;
     // call super constructor
     constructor() { 
         super();
-        this.authHeader = { 'User-Agent': 'stockTool jacob.hebbel@gmail.com' };
     }
+    static tickerToCik = null;
 
     // call for getting data
     async fetchData(ticker) {
 
         console.log('calling fetch data on edgar service');
 
-        if (!EdgarService.tickerToCik)
-            EdgarService.tickerToCik = await tickerToCik();
-
-        const cik = EdgarService.tickerToCik[ticker] || null;
-        if (!cik) throw new InvalidTickerStringError('ticker had no correlating cik');
-
-        console.log('fetching facts for ' + ticker + ' with cik ' + cik);
-        const url = 'https://data.sec.gov/api/xbrl/companyfacts/CIK' + cik + '.json';
-        const authHeader = { 'User-Agent': 'FinanceClubResearch jacob.hebbel@gmail.com' };
-        const response = await axios.get(url, {
-            headers: {
-                ...authHeader,
-                'Accept-Encoding': 'gzip, deflate, br'
-            }
-        });
+        const url = 'https://financialmodelingprep.com/stable/';
         
-        // check the response is ok
-        if (response.status != 200) throw new Error(`Could not connect to SEC api`);        
-        console.log(response.data);
-        return response.data;
+        // endpoints to hit for all the data
+        const stockEndpoints = ['income-statement', 'balance-sheet-statement', 
+            'cash-flow-statement', 'key-metrics', 'ratios'];
+        const rateEndpoints = ['market-risk-premium', 'treasury-rates', 'profile'];
+        
+        const params = {
+            'symbol': ticker,
+            'apikey': process.env.FMP_KEY
+        };
+
+        var allData = {};
+        for (const endpoint of [...stockEndpoints, ...rateEndpoints]) {
+            
+            // build the url
+            const searchParams = new URLSearchParams(params).toString();
+            console.log(`${url}${endpoint}?${searchParams}`);
+            
+            // get the response
+            const response = await axios.get(`${url}${endpoint}?${searchParams}`);
+            
+            // check the response is ok
+            if (response.status != 200) throw new Error(`Could not connect to SEC api`);
+            
+            const data = response.data;
+
+            // logic specific to rate endpoints
+            if (rateEndpoints.includes(endpoint)) {
+                switch (endpoint) {
+                    case 'market-risk-premium':
+                        allData[endpoint] = [{
+                            value: data.find(premium => premium.country == "United States").totalEquityRiskPremium
+                        }];
+                        continue;
+
+                    case 'treasury-rates':
+                        allData[endpoint] = [{
+                            value: data[0].year10,
+                            date: data[0].date
+                        }];
+                        continue;
+
+                    case 'profile':
+                        allData[endpoint] = [{
+                            value: data[0].beta
+                        }];
+                        continue;
+
+                    default:
+                        throw Error('unexpected behavior');
+                }
+            }
+
+            // loops over all fields
+            const skipValues = ["symbol", "date", "fiscalYear", "period", "reportedCurrency"];
+            data.forEach(json => {
+                
+                // adds all entries of the json to allData, where each field has its metadata attached
+                for (const [key, value] of Object.entries(json)) {
+
+                    // skips metadata fields
+                    if (skipValues.includes(value))
+                        continue;
+                    
+                    // ensures key points to an array
+                    if (!allData[key])
+                        allData[key] = [];
+                    
+                    // attaches metadata to each individual filing
+                    allData[key].push({
+                        "value": value,
+                        "date": json.date,
+                        "fiscalYear": json.fiscalYear,
+                        "period": json.period,
+                        "currency": json.reportedCurrency
+                    });                        
+                }
+            });
+        }
+        
+        return allData;
     }
 
     async formatData(data) {
         
-        // extracting info for dcf
-        const dcfMapping = mapping['dcf'];
-        
-        let dcfResults = {};
-
-        // go through each field: alias combo for dcf
-        Object.entries(dcfMapping).forEach(([field, aliasList]) => {
-            
-            console.log(`looking for field ${field} using alias list ${aliasList}`);
+        // go through each field: alias combo
+        let results = {};
+        Object.entries(mapping).forEach(([field, aliasList]) => {
 
             // find the first alias that's in the edgar response object
-            const matchingAlias = aliasList.find(alias => alias in data.facts['us-gaap']);
-            dcfResults[field] = data.facts['us-gaap'][matchingAlias];
+            const matchingAlias = aliasList.find(alias => alias in data);
             
+            if (matchingAlias)
+                results[field] = {
+                    ...data[matchingAlias][0],
+                    givenAlias: field,
+                    reportedAs: matchingAlias
+                };
+            
+
             // ensure the field is populated. if not, throw an error
-            if (!dcfResults[field])
-                throw new FieldNotFoundError('Could not find a filing label suitable for field ' + field);
+            if (!results[field])
+                // throw new FieldNotFoundError('Could not find a filing label suitable for field ' + field);
+                results[field] = null;
             else
-                console.log(`made entry ${field} : ${dcfResults[field]}`);
+                console.log('made entry %o : %o', field, results[field]);
         });
 
-        
-        // now time to fetch info for WACC
-        const waccMapping = mapping['wacc'];
-        let waccResults = {};
-        Object.entries(waccMapping).forEach(([field, instructor]) => {
 
-            console.log(`looking for field ${field} using instructor ${instructor}`);
-
-            // first see if any static fields are in the response object
-            if (instructor.static) 
-                waccResults[field] = instructor.static.find(alias => alias in data.facts['us-gaap']); 
-
-            // if no static or no static field worked, try calculating it
-            if (!waccResults[field]) {
-
-                // parse operation aliases and operator
-                const op1 = instructor[operation][0];
-                const op2 = instructor[operation][1];
-                const op = instructor[operation][2];
-
-                if (data[op1] && data[op2])
-                    waccResults[field] = executeOperation(data[op1], data[op2], op);
-                else
-                    throw new FieldNotFoundError();
-            }
-        });
-
-        // return a json
-        return {
-            dcfResults,
-            waccResults
+        // some fields need to be calculated
+        const calculatedFields = {
+            'Cost of Debt': calculateCostOfDebt,
+            'Market Return': calculateMarketReturn
         };
+        
+        // calculate each field
+        Object.entries(calculatedFields).forEach(([field, func]) => results[field] = func(results));
+        
+        // logging the output
+        console.log('Sending response object %o', results);
+        
+        // return a json
+        return results;
     }
 }
 

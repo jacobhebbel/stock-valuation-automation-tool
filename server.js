@@ -1,4 +1,5 @@
 // imports
+import 'dotenv/config';
 import express from 'express';
 
 import { stringToService } from './utils.js';
